@@ -1,6 +1,6 @@
 import { Company } from "../models/company.model.js";
-// import getDataUri from "../utils/datauri.js";
-// import cloudinary from "../utils/cloudinary.js";
+import getDataUri from "../utils/datauri.js";
+import cloudinary from "../utils/cloudinary.js";
 
 export const registerCompany = async (req, res) => {
     try {
@@ -70,59 +70,31 @@ export const getCompanyById = async (req, res) => {
     }
 }
 export const updateCompany = async (req, res) => {
-    console.log("Body received from client:", req.body);
+    try {
+        const { name, description, website, location } = req.body;
+ 
+        const file = req.file;
+        // idhar cloudinary ayega
+        const fileUri = getDataUri(file);
+        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+        const logo = cloudResponse.secure_url;
+    
+        const updateData = { name, description, website, location, logo };
 
-  try {
-    // 🧩 Ensure body is parsed
-    if (!req.body) {
-      return res.status(400).json({
-        success: false,
-        message: "Request body is missing.",
-      });
+        const company = await Company.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+        if (!company) {
+            return res.status(404).json({
+                message: "Company not found.",
+                success: false
+            })
+        }
+        return res.status(200).json({
+            message:"Company information updated.",
+            success:true
+        })
+
+    } catch (error) {
+        console.log(error);
     }
-
-    // Extract from body
-    const { name, description, website, location } = req.body;
-
-    // Handle file (if uploaded)
-    let logo = null;
-    const file = req.file;
-    if (file) {
-      // Future: upload to cloudinary
-      // const fileUri = getDataUri(file);
-      // const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
-      // logo = cloudResponse.secure_url;
-      logo = file.path;
-    }
-
-    // Only include provided fields
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (description) updateData.description = description;
-    if (website) updateData.website = website;
-    if (location) updateData.location = location;
-    if (logo) updateData.logo = logo;
-
-    // Update the company in DB
-    const company = await Company.findByIdAndUpdate(req.params.id, updateData, { new: true });
-
-    if (!company) {
-      return res.status(404).json({
-        message: "Company not found.",
-        success: false,
-      });
-    }
-
-    return res.status(200).json({
-      message: "Company information updated successfully.",
-      success: true,
-      company,
-    });
-  } catch (error) {
-    console.error("Error in updateCompany:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
+}
