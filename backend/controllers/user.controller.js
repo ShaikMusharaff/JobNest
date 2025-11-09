@@ -2,12 +2,12 @@ import { User } from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import getDataUri from "../utils/datauri.js";
-import cloudinary from "../utils/cloudinary.js";
+import cloudinary from "../utils/Cloudinary.js";
 
 export const register = async (req, res) => {
     try {
         const { fullname, email, phoneNumber, password, role } = req.body;
-         console.log(fullname, email, phoneNumber, password, role)
+         
         if (!fullname || !email || !phoneNumber || !password || !role) {
             return res.status(400).json({
                 message: "Something is missing",
@@ -112,60 +112,61 @@ export const logout = async (req, res) => {
     }
 }
 export const updateProfile = async (req, res) => {
-    try {
-        const { fullname, email, phoneNumber, bio, skills } = req.body;
-        
-        const file = req.file;
+  try {
+    const { fullname, email, phoneNumber, bio, skills } = req.body;
+    const user = await User.findById(req.id);
 
-        const fileUri = getDataUri(file);
-        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
-
-
-
-        let skillsArray;
-        if(skills){
-            skillsArray = skills.split(",");
-        }
-        const userId = req.id; // middleware authentication
-        let user = await User.findById(userId);
-
-        if (!user) {
-            return res.status(400).json({
-                message: "User not found.",
-                success: false
-            })
-        }
-        // updating data
-        if(fullname) user.fullname = fullname
-        if(email) user.email = email
-        if(phoneNumber)  user.phoneNumber = phoneNumber
-        if(bio) user.profile.bio = bio
-        if(skills) user.profile.skills = skillsArray
-      
-        // resume comes later here...
-        if(cloudResponse){
-            user.profile.resume = cloudResponse.secure_url // save the cloudinary url
-            user.profile.resumeOriginalName = file.originalname // Save the original file name
-        }
-
-
-        await user.save();
-
-        user = {
-            _id: user._id,
-            fullname: user.fullname,
-            email: user.email,
-            phoneNumber: user.phoneNumber,
-            role: user.role,
-            profile: user.profile
-        }
-
-        return res.status(200).json({
-            message:"Profile updated successfully.",
-            user,
-            success:true
-        })
-    } catch (error) {
-        console.log(error);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
-}
+
+    // ✅ Parse skills safely
+    let skillsArray = [];
+    if (skills) {
+      try {
+        skillsArray = JSON.parse(skills);
+      } catch {
+        skillsArray = skills.split(",").map((s) => s.trim());
+      }
+    }
+
+    // ✅ Update basic fields
+    if (fullname) user.fullname = fullname;
+    if (email) user.email = email;
+    if (phoneNumber) user.phoneNumber = phoneNumber;
+    if (bio) user.profile.bio = bio;
+    if (skillsArray.length) user.profile.skills = skillsArray;
+
+    // ✅ Upload resume if provided
+    if (req.file) {
+      console.log("File received:", req.file.originalname);
+
+      const fileUri = getDataUri(req.file);
+      // ⚡ FIX: Upload as RAW type (so PDFs work)
+      const uploaded = await cloudinary.uploader.upload(fileUri.content, {
+        folder: "resumes",
+        resource_type: "raw", // ✅ Important for PDFs
+      });
+
+      // ✅ Store secure URL & file name
+      user.profile.resume = uploaded.secure_url;
+      user.profile.resumeOriginalName = req.file.originalname;
+    } else {
+      console.log("No file uploaded");
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully.",
+      user,
+    });
+  } catch (error) {
+    console.error("Profile update error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Update failed.",
+    });
+  }
+};
