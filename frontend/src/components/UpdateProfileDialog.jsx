@@ -27,11 +27,12 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
     const changeEventHandler = (e) => {
         setInput({ ...input, [e.target.name]: e.target.value });
     }
+const fileChangeHandler = (e) => {
+  const file = e.target.files?.[0];
+  setInput({ ...input, resume: file });
+  console.log("Selected file:", file); // ✅ Add this line temporarily
+};
 
-    const fileChangeHandler = (e) => {
-        const file = e.target.files?.[0];
-        setInput({ ...input, file })
-    }
 
     const submitHandler = async (e) => {
         e.preventDefault();
@@ -41,9 +42,10 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
         formData.append("phoneNumber", input.phoneNumber);
         formData.append("bio", input.bio);
         formData.append("skills", input.skills);
-        if (input.file) {
-            formData.append("file", input.file);
-        }
+       if (input.resume) {
+  formData.append("resume", input.resume);  // ✅ Must be "resume"
+}
+
         try {
             setLoading(true);
             const res = await axios.post(`${USER_API_END_POINT}/profile/update`, formData, {

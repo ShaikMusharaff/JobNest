@@ -14,7 +14,7 @@ import AdminJobs from "./components/admin/AdminJobs";
 import PostJob from './components/admin/PostJob'
 import Applicants from './components/admin/Applicants'
 import ProtectedRoute from './components/admin/ProtectedRoute'
-
+import JobAI from './components/shared/JobAI'
 
 const appRouter = createBrowserRouter([
   {
@@ -28,6 +28,10 @@ const appRouter = createBrowserRouter([
   {
     path: '/signup',
     element: <Signup />
+  },
+  {
+    path:'/jobAI',  
+    element:<JobAI />
   },
   {
     path: "/jobs",
