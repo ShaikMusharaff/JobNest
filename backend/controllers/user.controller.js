@@ -4,48 +4,80 @@ import jwt from "jsonwebtoken";
 import getDataUri from "../utils/datauri.js";
 import cloudinary from "../utils/Cloudinary.js";
 
+
 export const register = async (req, res) => {
-    try {
-        const { fullname, email, phoneNumber, password, role } = req.body;
-         
-        if (!fullname || !email || !phoneNumber || !password || !role) {
-            return res.status(400).json({
-                message: "Something is missing",
-                success: false
-            });
-        };
-        const file = req.file;
-        const fileUri = getDataUri(file);
-        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+  try {
+    const { fullname, email, phoneNumber, password, role } = req.body;
 
-        const user = await User.findOne({ email });
-        if (user) {
-            return res.status(400).json({
-                message: 'User already exist with this email.',
-                success: false,
-            })
-        }
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        await User.create({
-            fullname,
-            email,
-            phoneNumber,
-            password: hashedPassword,
-            role,
-            profile:{
-                profilePhoto:cloudResponse.secure_url,
-            }
-        });
-
-        return res.status(201).json({
-            message: "Account created successfully.",
-            success: true
-        });
-    } catch (error) {
-        console.log(error);
+    if (!fullname || !email || !phoneNumber || !password || !role) {
+      return res.status(400).json({
+        message: "Something is missing",
+        success: false,
+      });
     }
-}
+
+    // ✅ Handle both files safely
+    const profilePhotoFile = req.files?.profilePhoto?.[0] || null;
+    const resumeFile = req.files?.resume?.[0] || null;
+
+    let profilePhotoUrl = "";
+    let resumeUrl = "";
+
+    // ✅ Upload profile photo if present
+    if (profilePhotoFile) {
+      const fileUri = getDataUri(profilePhotoFile);
+      const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+      profilePhotoUrl = cloudResponse.secure_url;
+    }
+
+    // ✅ Upload resume if present
+    if (resumeFile) {
+      const resumeUri = getDataUri(resumeFile);
+      const uploadRes = await cloudinary.uploader.upload(resumeUri.content, {
+        folder: "resumes",
+        resource_type: "raw", // ⚡ ensures PDF uploads work
+      });
+      resumeUrl = uploadRes.secure_url;
+    }
+
+    // ✅ Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        message: "User already exists with this email.",
+        success: false,
+      });
+    }
+
+    // ✅ Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ✅ Create new user
+    await User.create({
+      fullname,
+      email,
+      phoneNumber,
+      password: hashedPassword,
+      role,
+      profile: {
+        profilePhoto: profilePhotoUrl,
+        resume: resumeUrl,
+      },
+    });
+
+    return res.status(201).json({
+      message: "Account created successfully.",
+      success: true,
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+
 export const login = async (req, res) => {
     try {
         const { email, password, role } = req.body;
@@ -137,23 +169,25 @@ export const updateProfile = async (req, res) => {
     if (bio) user.profile.bio = bio;
     if (skillsArray.length) user.profile.skills = skillsArray;
 
-    // ✅ Upload resume if provided
-    if (req.file) {
-      console.log("File received:", req.file.originalname);
+   // ✅ Upload resume if provided
+const resumeFile = req.files?.resume?.[0];
+if (resumeFile) {
+  console.log("Resume received:", resumeFile.originalname);
 
-      const fileUri = getDataUri(req.file);
-      // ⚡ FIX: Upload as RAW type (so PDFs work)
-      const uploaded = await cloudinary.uploader.upload(fileUri.content, {
-        folder: "resumes",
-        resource_type: "raw", // ✅ Important for PDFs
-      });
+  const fileUri = getDataUri(resumeFile);
 
-      // ✅ Store secure URL & file name
-      user.profile.resume = uploaded.secure_url;
-      user.profile.resumeOriginalName = req.file.originalname;
-    } else {
-      console.log("No file uploaded");
-    }
+  // ⚡ FIX: Upload as RAW type (so PDFs and DOCX files work)
+  const uploaded = await cloudinary.uploader.upload(fileUri.content, {
+    folder: "resumes",
+    resource_type: "raw", // ✅ Important for non-image files
+  });
+
+  // ✅ Store secure URL & file name in the user's profile
+  user.profile.resume = uploaded.secure_url;
+  user.profile.resumeOriginalName = resumeFile.originalname;
+} else {
+  console.log("No resume uploaded");
+}
 
     await user.save();
 

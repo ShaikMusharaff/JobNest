@@ -3,13 +3,14 @@ import DataUriParser from "datauri/parser.js";
 import path from "path";
 
 const storage = multer.memoryStorage();
+const parser = new DataUriParser();
 
-// ✅ Must match the name used in FormData → "resume"
-export const singleUpload = multer({ storage }).single("resume");
+export const multiUpload = multer({ storage }).fields([
+  { name: "resume", maxCount: 1 },
+  { name: "profilePhoto", maxCount: 1 },
+]);
 
-// Converts buffer → Data URI
 export const getDataUri = (file) => {
-  const parser = new DataUriParser();
   const extName = path.extname(file.originalname).toString();
   return parser.format(extName, file.buffer);
 };

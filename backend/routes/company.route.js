@@ -6,12 +6,12 @@ import {
   registerCompany, 
   updateCompany 
 } from "../controllers/company.controller.js";
-import { singleUpload } from "../middleware/multer.js";
+import { multiUpload } from "../middleware/multer.js";
 
 const router = express.Router();
 
 // ✅ Include singleUpload for file handling
-router.route("/register").post(isAuthenticated, singleUpload, registerCompany);
+router.route("/register").post(isAuthenticated, multiUpload, registerCompany);
 
 // ✅ Get all companies
 router.route("/get").get(isAuthenticated, getCompany);
@@ -20,6 +20,6 @@ router.route("/get").get(isAuthenticated, getCompany);
 router.route("/get/:id").get(isAuthenticated, getCompanyById);
 
 // ✅ Update company details + logo
-router.route("/update/:id").put(isAuthenticated, singleUpload, updateCompany);
+router.route("/update/:id").put(isAuthenticated,multiUpload, updateCompany);
 
 export default router;
