@@ -8,7 +8,9 @@ const parser = new DataUriParser();
 export const multiUpload = multer({ storage }).fields([
   { name: "resume", maxCount: 1 },
   { name: "profilePhoto", maxCount: 1 },
+  { name: "file", maxCount: 1 }    // ✅ Add this line
 ]);
+
 
 export const getDataUri = (file) => {
   const extName = path.extname(file.originalname).toString();
