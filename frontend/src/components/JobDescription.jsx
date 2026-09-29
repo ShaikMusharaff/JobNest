@@ -1,13 +1,29 @@
 import React, { useEffect, useState } from "react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import axios from "axios";
-import { APPLICATION_API_END_POINT, JOB_API_END_POINT } from "@/utils/constant";
+import { APPLICATION_API_END_POINT, JOB_API_END_POINT, RECOMMENDATION_API_END_POINT } from "@/utils/constant";
 import { setSingleJob } from "@/redux/jobSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
-import { Briefcase, MapPin, CalendarDays, DollarSign, Users } from "lucide-react";
+import {
+  Briefcase,
+  MapPin,
+  CalendarDays,
+  DollarSign,
+  Users,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  Lightbulb,
+  ShieldCheck,
+  TrendingUp,
+  Award,
+  Zap,
+  Building2,
+  Check
+} from "lucide-react";
 import Navbar from "./shared/Navbar";
 
 const JobDescription = () => {
@@ -19,6 +35,8 @@ const JobDescription = () => {
     ) || false;
 
   const [isApplied, setIsApplied] = useState(isInitiallyApplied);
+  const [compatibility, setCompatibility] = useState(null);
+  const [loadingScore, setLoadingScore] = useState(false);
   const params = useParams();
   const jobId = params.id;
   const dispatch = useDispatch();
@@ -33,7 +51,7 @@ const JobDescription = () => {
         setIsApplied(true);
         const updatedSingleJob = {
           ...singleJob,
-          applications: [...singleJob.applications, { applicant: user?._id }],
+          applications: [...(singleJob.applications || []), { applicant: user?._id }],
         };
         dispatch(setSingleJob(updatedSingleJob));
         toast.success(res.data.message);
@@ -53,9 +71,9 @@ const JobDescription = () => {
         if (res.data.success) {
           dispatch(setSingleJob(res.data.job));
           setIsApplied(
-            res.data.job.applications.some(
+            res.data.job.applications?.some(
               (application) => application.applicant === user?._id
-            )
+            ) || false
           );
         }
       } catch (error) {
@@ -65,35 +83,62 @@ const JobDescription = () => {
     fetchSingleJob();
   }, [jobId, dispatch, user?._id]);
 
-  return (
-    <>
-      <Navbar />
-      <div className="max-w-6xl mx-auto mt-16 px-6 bg-gray-50 min-h-screen">
-        {/* ==== UPPER SECTION ==== */}
-        <div className="relative rounded-3xl overflow-hidden shadow-2xl mb-12">
-          {/* Background Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#5B21B6] via-[#6D28D9] to-[#7C3AED]" />
-          {/* Overlay for better text visibility */}
-          <div className="absolute inset-0 bg-black/30" />
+  // Fetch ML Compatibility Score for this specific job
+  useEffect(() => {
+    const fetchCompatibility = async () => {
+      if (!jobId) return;
+      try {
+        setLoadingScore(true);
+        const endpoint = user?._id
+          ? `${RECOMMENDATION_API_END_POINT}/score-job/${jobId}/${user._id}`
+          : `${RECOMMENDATION_API_END_POINT}/score-job/${jobId}`;
+        const res = await axios.get(endpoint);
+        if (res.data.success) {
+          setCompatibility(res.data.analysis);
+        }
+      } catch (err) {
+        console.warn("Could not fetch job compatibility:", err);
+      } finally {
+        setLoadingScore(false);
+      }
+    };
 
-          <div className="relative z-10 p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+    fetchCompatibility();
+  }, [jobId, user?._id]);
+
+  return (
+    <div className="bg-slate-50/60 min-h-screen pb-20">
+      <Navbar />
+      <div className="max-w-5xl mx-auto mt-8 px-4 md:px-6">
+        {/* ==== UPPER HERO BANNER ==== */}
+        <div className="relative rounded-3xl overflow-hidden shadow-2xl mb-10 bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#3B0764] p-8 md:p-12 text-white border border-white/10">
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
-              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-indigo-200 text-xs font-bold mb-4 border border-white/15">
+                <Briefcase className="w-3.5 h-3.5" />
+                <span>Verified Career Opportunity</span>
+              </div>
+              <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
                 {singleJob?.title || "Job Title"}
               </h1>
-              <p className="text-gray-200 mt-2 text-xl font-medium tracking-wide">
-                {singleJob?.company?.name || "Company Name"}
+              <p className="text-indigo-200 mt-2 text-xl font-semibold tracking-wide flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-indigo-300" />
+                <span>{singleJob?.company?.name || "Company Name"}</span>
               </p>
 
-              <div className="flex flex-wrap gap-3 mt-5">
-                <Badge className="bg-white/20 text-white border border-white/30 px-3 py-1 rounded-md backdrop-blur-md">
-                  {singleJob?.position || 1} Positions
+              <div className="flex flex-wrap gap-2.5 mt-6">
+                <Badge className="bg-white/15 text-white border border-white/20 px-3.5 py-1.5 rounded-xl backdrop-blur-md text-xs font-bold">
+                  {singleJob?.position || 1} Open Position{singleJob?.position === 1 ? "" : "s"}
                 </Badge>
-                <Badge className="bg-emerald-500/20 text-emerald-100 border border-emerald-300/30 px-3 py-1 rounded-md backdrop-blur-md">
+                <Badge className="bg-emerald-500/20 text-emerald-200 border border-emerald-300/30 px-3.5 py-1.5 rounded-xl backdrop-blur-md text-xs font-bold">
                   {singleJob?.jobType || "Full-Time"}
                 </Badge>
-                <Badge className="bg-white/20 text-white border border-white/30 px-3 py-1 rounded-md backdrop-blur-md">
+                <Badge className="bg-white/15 text-white border border-white/20 px-3.5 py-1.5 rounded-xl backdrop-blur-md text-xs font-bold">
                   ₹ {singleJob?.salary || "N/A"} LPA
+                </Badge>
+                <Badge className="bg-white/15 text-white border border-white/20 px-3.5 py-1.5 rounded-xl backdrop-blur-md text-xs font-bold flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-indigo-300" />
+                  {singleJob?.location || "Remote"}
                 </Badge>
               </div>
             </div>
@@ -101,96 +146,254 @@ const JobDescription = () => {
             <Button
               onClick={isApplied ? null : applyJobHandler}
               disabled={isApplied}
-              className={`px-8 py-3 text-lg font-semibold rounded-xl transition-all duration-300 shadow-md ${
+              className={`px-9 py-4 text-base font-extrabold rounded-2xl transition-all duration-300 shadow-2xl ${
                 isApplied
                   ? "bg-gray-400 text-white cursor-not-allowed"
-                  : "bg-white text-[#6D28D9] hover:bg-[#f3e8ff] hover:scale-105"
+                  : "bg-gradient-to-r from-white to-indigo-50 text-[#3B0764] hover:bg-white hover:scale-105 active:scale-95 shadow-white/10"
               }`}
             >
-              {isApplied ? "Already Applied" : "Apply Now"}
+              {isApplied ? "Already Applied" : "Apply For Position"}
             </Button>
           </div>
 
-          {/* Decorative bottom gradient bar */}
-          <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#10B981] via-[#7C3AED] to-[#6D28D9]" />
+          {/* Decorative Glow */}
+          <div className="absolute right-0 top-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
         </div>
 
-        {/* ==== JOB DETAILS ==== */}
-        <div className="bg-white shadow-lg rounded-3xl p-10 border border-gray-100 transition-all duration-500 hover:shadow-[0_8px_40px_rgba(0,0,0,0.08)]">
-          <h2 className="text-2xl font-bold mb-8 text-gray-900 border-b pb-4 flex items-center gap-3">
-            <Briefcase className="w-6 h-6 text-[#7C3AED]" />
-            Job Overview
+        {/* ==== MACHINE LEARNING COMPATIBILITY SCORECARD ==== */}
+        {user && user.role === "student" && (
+          <div className="mb-10 bg-gradient-to-br from-white via-indigo-50/40 to-purple-50/40 border border-indigo-100 shadow-xl rounded-3xl p-8 relative overflow-hidden">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-indigo-100">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#6A38C2] to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+                  <Sparkles className="w-8 h-8 text-yellow-300" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-indigo-800 bg-indigo-100 px-3 py-0.5 rounded-full">
+                      ML Candidate Fit
+                    </span>
+                    <span className="text-xs text-gray-500 font-semibold">
+                      Profile Skills & Resume Analysis
+                    </span>
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-black text-gray-900 mt-1">
+                    Your Compatibility Scorecard
+                  </h3>
+                </div>
+              </div>
+
+              {/* Match Gauge */}
+              {loadingScore ? (
+                <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-xs text-gray-600 font-bold">Computing fit...</span>
+                </div>
+              ) : compatibility ? (
+                <div className="flex items-center gap-4 bg-white p-4 rounded-3xl border border-indigo-100 shadow-md">
+                  <div className="text-right">
+                    <div className="text-[11px] text-gray-400 uppercase font-black tracking-wider">
+                      Overall Match
+                    </div>
+                    <div className="text-sm font-extrabold text-indigo-950">
+                      {compatibility.matchTier}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-purple-50 border border-indigo-200 shadow-inner">
+                    <span className="text-2xl font-black text-indigo-900">
+                      {compatibility.matchScore}%
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Compatibility Breakdown Details */}
+            {compatibility && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                {/* 1. Matched Skills */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 text-emerald-800 font-black text-sm mb-3">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Skills You Have ({compatibility.matchedSkills?.length || 0})</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {compatibility.matchedSkills?.length > 0 ? (
+                        compatibility.matchedSkills.map((s, idx) => (
+                          <span
+                            key={idx}
+                            className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs px-2.5 py-1 rounded-xl font-bold"
+                          >
+                            ✓ {s}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">
+                          No direct skill overlap detected.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-emerald-700 font-medium mt-3 pt-2 border-t border-gray-50">
+                    Recognized from your profile skills and uploaded resume.
+                  </div>
+                </div>
+
+                {/* 2. Missing Skills */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 text-amber-800 font-black text-sm mb-3">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      <span>Required Skills to Highlight ({compatibility.missingSkills?.length || 0})</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {compatibility.missingSkills?.length > 0 ? (
+                        compatibility.missingSkills.map((s, idx) => (
+                          <span
+                            key={idx}
+                            className="bg-amber-50 text-amber-900 border border-amber-200 text-xs px-2.5 py-1 rounded-xl font-bold"
+                          >
+                            + {s}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 block">
+                          🎉 Full technical requirements match!
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-amber-700 font-medium mt-3 pt-2 border-t border-gray-50">
+                    Mention any related experience in these areas in your application.
+                  </div>
+                </div>
+
+                {/* 3. Actionable Application Advice */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 text-indigo-900 font-black text-sm mb-2">
+                      <Lightbulb className="w-4 h-4 text-amber-500" />
+                      <span>Application Strategy</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                      {compatibility.matchReason}
+                    </p>
+                    {compatibility.suggestions?.length > 0 && (
+                      <div className="space-y-2 border-t border-gray-100 pt-2 text-[11px] text-gray-700">
+                        {compatibility.suggestions.slice(0, 2).map((tip, i) => (
+                          <div key={i} className="flex items-start gap-1.5">
+                            <span className="text-indigo-600 font-bold">•</span>
+                            <span className="leading-snug">{tip}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==== DETAILED JOB OVERVIEW ==== */}
+        <div className="bg-white shadow-xl rounded-3xl p-8 md:p-10 border border-gray-200/80">
+          <h2 className="text-2xl font-black mb-6 text-gray-900 border-b pb-4 flex items-center gap-3">
+            <Briefcase className="w-6 h-6 text-[#6A38C2]" />
+            <span>Job Overview & Requirements</span>
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-10 text-gray-700 text-[1.05rem] leading-relaxed">
-            <p className="flex items-center gap-3">
-              <Briefcase className="w-5 h-5 text-[#7C3AED]" />
-              <span className="font-semibold">Role:</span>
-              <span className="pl-2">
-                {singleJob?.title || "Not specified"}
-              </span>
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-10 text-gray-700 text-base leading-relaxed">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Briefcase className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-bold text-gray-900 text-xs uppercase block text-gray-400">Target Role</span>
+                <span className="font-semibold text-gray-900">{singleJob?.title || "Not specified"}</span>
+              </div>
+            </div>
 
-            <p className="flex items-center gap-3">
-              <MapPin className="w-5 h-5 text-[#7C3AED]" />
-              <span className="font-semibold">Location:</span>
-              <span className="pl-2">{singleJob?.location || "N/A"}</span>
-            </p>
-            {/* Description */}
-            <p className="flex items-start gap-3 col-span-1 md:col-span-2">
-              <span className="font-semibold flex-shrink-0">Description:</span>
-              <span className="pl-2 text-gray-600">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-bold text-gray-900 text-xs uppercase block text-gray-400">Location</span>
+                <span className="font-semibold text-gray-900">{singleJob?.location || "N/A"}</span>
+              </div>
+            </div>
+
+            <div className="col-span-1 md:col-span-2 bg-gray-50/70 p-6 rounded-2xl border border-gray-100">
+              <span className="font-black text-gray-900 block mb-2 text-sm uppercase tracking-wider text-indigo-900">
+                Detailed Job Description
+              </span>
+              <p className="text-gray-600 leading-relaxed whitespace-pre-line text-sm">
                 {singleJob?.description || "No description provided"}
-              </span>
-            </p>
+              </p>
+            </div>
 
-            {/* Requirements */}
             {singleJob?.requirements?.length > 0 && (
-              <div className="col-span-1 md:col-span-2 mt-4">
-                <p className="flex items-start gap-3">
-                  <span className="font-semibold flex-shrink-0">
-                    Requirements:
-                  </span>
-                  <ul className="list-disc list-inside text-gray-600 pl-4">
-                    {singleJob.requirements.map((req, index) => (
-                      <li key={index}>{req}</li>
-                    ))}
-                  </ul>
-                </p>
+              <div className="col-span-1 md:col-span-2">
+                <span className="font-black text-gray-900 block mb-3 text-sm uppercase tracking-wider text-indigo-900">
+                  Required Competencies & Skills
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {singleJob.requirements.map((req, index) => (
+                    <span
+                      key={index}
+                      className="bg-slate-100 text-slate-800 text-xs px-3.5 py-1.5 rounded-xl font-bold border border-slate-200 shadow-2xs"
+                    >
+                      {req}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
-            <p className="flex items-center gap-3">
-              <Briefcase className="w-5 h-5 text-[#7C3AED]" />
-              <span className="font-semibold">Experience:</span>
-              <span className="pl-2">{singleJob?.experienceLevel || "N/A"} yr</span>
-            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-bold text-gray-900 text-xs uppercase block text-gray-400">Experience Needed</span>
+                <span className="font-semibold text-gray-900">{singleJob?.experienceLevel || 0} years experience</span>
+              </div>
+            </div>
 
-            <p className="flex items-center gap-3">
-              <DollarSign className="w-5 h-5 text-[#7C3AED]" />
-              <span className="font-semibold">Salary:</span>
-              <span className="pl-2">₹ {singleJob?.salary || "N/A"} LPA</span>
-            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-bold text-gray-900 text-xs uppercase block text-gray-400">Compensation Package</span>
+                <span className="font-semibold text-gray-900">₹ {singleJob?.salary || "N/A"} LPA</span>
+              </div>
+            </div>
 
-            <p className="flex items-center gap-3">
-              <Users className="w-5 h-5 text-[#7C3AED]" />
-              <span className="font-semibold">Applicants:</span>
-              <span className="pl-2">
-                {singleJob?.applications?.length || 0}
-              </span>
-            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-bold text-gray-900 text-xs uppercase block text-gray-400">Applicants</span>
+                <span className="font-semibold text-gray-900">{singleJob?.applications?.length || 0} candidates applied</span>
+              </div>
+            </div>
 
-            <p className="flex items-center gap-3">
-              <CalendarDays className="w-5 h-5 text-[#7C3AED]" />
-              <span className="font-semibold">Posted Date:</span>
-              <span className="pl-2">
-                {singleJob?.createdAt?.split("T")[0] || "N/A"}
-              </span>
-            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <CalendarDays className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-bold text-gray-900 text-xs uppercase block text-gray-400">Posting Date</span>
+                <span className="font-semibold text-gray-900">{singleJob?.createdAt?.split("T")[0] || "N/A"}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
