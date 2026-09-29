@@ -18,7 +18,7 @@ export const register = async (req, res) => {
 
     // ✅ Handle both files safely
     const profilePhotoFile = req.files?.profilePhoto?.[0] || null;
-    const resumeFile = req.files?.resume?.[0] || null;
+    const resumeFile = req.files?.resume?.[0] || req.files?.file?.[0] || null;
 
     let profilePhotoUrl = "";
     let resumeUrl = "";
@@ -38,6 +38,28 @@ export const register = async (req, res) => {
         resource_type: "raw", // ⚡ ensures PDF uploads work
       });
       resumeUrl = uploadRes.secure_url;
+    }
+
+    // ✅ Auto-extract skills from resume during registration if available
+    let autoExtractedSkills = [];
+    if (resumeUrl) {
+      try {
+        const aiServiceUrl = process.env.AI_SERVICE_URL || "http://localhost:5001";
+        const response = await fetch(`${aiServiceUrl}/analyze_resume`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resume_url: resumeUrl }),
+          signal: AbortSignal.timeout(4000)
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data && Array.isArray(data.skills)) {
+            autoExtractedSkills = data.skills;
+          }
+        }
+      } catch (err) {
+        console.warn("Auto-skill extraction on register skipped (AI service offline or timed out):", err.message);
+      }
     }
 
     // ✅ Check if user already exists
@@ -62,6 +84,8 @@ export const register = async (req, res) => {
       profile: {
         profilePhoto: profilePhotoUrl,
         resume: resumeUrl,
+        resumeOriginalName: resumeFile ? resumeFile.originalname : "",
+        skills: autoExtractedSkills
       },
     });
 

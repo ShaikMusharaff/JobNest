@@ -8,7 +8,7 @@ import { Company } from "../models/company.model.js";
 // admin post krega job
 export const postJob = async (req, res) => {
     try {
-        const { title, description, requirements, salary, location, jobType, experience, position, companyId } = req.body;
+        const { title, description, requirements, salary, location, jobType, experience, position, companyId, deadline } = req.body;
         const userId = req.id;
 
         if (!title || !description || !requirements || !salary || !location || !jobType || !experience || !position || !companyId) {
@@ -27,7 +27,8 @@ export const postJob = async (req, res) => {
             experienceLevel: experience,
             position,
             company: companyId,
-            created_by: userId
+            created_by: userId,
+            deadline: deadline ? new Date(deadline) : null
         });
         return res.status(201).json({
             message: "New job created successfully.",
@@ -36,6 +37,10 @@ export const postJob = async (req, res) => {
         });
     } catch (error) {
         console.log(error);
+        return res.status(500).json({
+            message: "Failed to create job.",
+            success: false
+        });
     }
 }
 // student

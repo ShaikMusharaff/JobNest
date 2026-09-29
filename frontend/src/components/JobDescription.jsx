@@ -22,7 +22,10 @@ import {
   Award,
   Zap,
   Building2,
-  Check
+  Check,
+  Timer,
+  XCircle,
+  Clock
 } from "lucide-react";
 import Navbar from "./shared/Navbar";
 
@@ -37,11 +40,50 @@ const JobDescription = () => {
   const [isApplied, setIsApplied] = useState(isInitiallyApplied);
   const [compatibility, setCompatibility] = useState(null);
   const [loadingScore, setLoadingScore] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [isExpired, setIsExpired] = useState(false);
   const params = useParams();
   const jobId = params.id;
   const dispatch = useDispatch();
 
+  // Real-time ticking countdown clock (updates every 1000ms)
+  useEffect(() => {
+    if (!singleJob?.deadline) {
+      setTimeLeft(null);
+      setIsExpired(false);
+      return;
+    }
+
+    const targetDate = new Date(singleJob.deadline);
+
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const diff = targetDate.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setIsExpired(true);
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+
+      setIsExpired(false);
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    calculateTimeLeft();
+    const timerInterval = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timerInterval);
+  }, [singleJob?.deadline]);
+
   const applyJobHandler = async () => {
+    if (isExpired) {
+      toast.error("The application deadline has passed for this job opening.");
+      return;
+    }
     try {
       const res = await axios.get(`${APPLICATION_API_END_POINT}/apply/${jobId}`, {
         withCredentials: true,
@@ -144,21 +186,135 @@ const JobDescription = () => {
             </div>
 
             <Button
-              onClick={isApplied ? null : applyJobHandler}
-              disabled={isApplied}
+              onClick={isApplied || isExpired ? null : applyJobHandler}
+              disabled={isApplied || isExpired}
               className={`px-9 py-4 text-base font-extrabold rounded-2xl transition-all duration-300 shadow-2xl ${
                 isApplied
                   ? "bg-gray-400 text-white cursor-not-allowed"
-                  : "bg-gradient-to-r from-white to-indigo-50 text-[#3B0764] hover:bg-white hover:scale-105 active:scale-95 shadow-white/10"
+                  : isExpired
+                  ? "bg-rose-500/80 text-white cursor-not-allowed border border-rose-400"
+                  : "bg-gradient-to-r from-white to-indigo-50 text-[#3B0764] hover:bg-white hover:scale-105 active:scale-95 shadow-white/10 cursor-pointer"
               }`}
             >
-              {isApplied ? "Already Applied" : "Apply For Position"}
+              {isApplied
+                ? "Already Applied"
+                : isExpired
+                ? "Applications Closed"
+                : "Apply For Position"}
             </Button>
           </div>
 
           {/* Decorative Glow */}
           <div className="absolute right-0 top-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
         </div>
+
+        {/* ==== REAL-TIME LIVE ACTIVITY & RECRUITER INSIGHTS TICKER ==== */}
+        <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4 fill-orange-500" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">
+                {singleJob?.applications?.length ? `${singleJob.applications.length} Candidates Applied` : "Early Applicant Role"}
+              </p>
+              <p className="text-[11px] text-slate-400">High response rate expected</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">Active Review Pipeline</p>
+              <p className="text-[11px] text-slate-400">Recruiter screening candidates</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-purple-50 text-[#6A38C2] flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">AI Compatibility Ready</p>
+              <p className="text-[11px] text-slate-400">Real-time skill matching active</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ==== REAL-TIME LIVE DEADLINE COUNTDOWN / ALERT BANNER ==== */}
+        {singleJob?.deadline && (
+          <div className={`mb-8 p-6 rounded-3xl border shadow-lg transition-all ${
+            isExpired 
+              ? 'bg-rose-50/90 border-rose-200 text-rose-950' 
+              : timeLeft?.days <= 2
+              ? 'bg-gradient-to-r from-amber-50 via-orange-50 to-rose-50 border-amber-300 shadow-amber-500/5'
+              : 'bg-gradient-to-r from-indigo-50/80 via-purple-50/80 to-blue-50/80 border-indigo-200/80'
+          }`}>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+              <div className="flex items-center gap-3.5">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${
+                  isExpired 
+                    ? 'bg-rose-100 text-rose-600' 
+                    : timeLeft?.days <= 2
+                    ? 'bg-amber-100 text-amber-700 animate-pulse'
+                    : 'bg-purple-100 text-[#6A38C2]'
+                }`}>
+                  {isExpired ? <XCircle className="w-6 h-6" /> : <Timer className="w-6 h-6" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                      isExpired
+                        ? 'bg-rose-200 text-rose-900'
+                        : timeLeft?.days <= 2
+                        ? 'bg-amber-200 text-amber-950'
+                        : 'bg-purple-200 text-purple-950'
+                    }`}>
+                      {isExpired ? "Deadline Expired" : "Application Deadline"}
+                    </span>
+                    {!isExpired && (
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                        Live Countdown
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="font-extrabold text-base text-slate-900 mt-1">
+                    {isExpired 
+                      ? "Applications for this opening have closed." 
+                      : `Deadline: ${new Date(singleJob.deadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
+                  </h4>
+                </div>
+              </div>
+
+              {!isExpired && timeLeft && (
+                <div className="flex items-center gap-2 sm:gap-3 self-center md:self-auto">
+                  <div className="flex flex-col items-center bg-white px-3.5 py-2 rounded-xl shadow-xs border border-slate-200/80 min-w-[55px]">
+                    <span className="font-black text-xl text-slate-900 leading-none">{String(timeLeft.days).padStart(2, '0')}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Days</span>
+                  </div>
+                  <span className="font-bold text-slate-400 text-lg leading-none">:</span>
+                  <div className="flex flex-col items-center bg-white px-3.5 py-2 rounded-xl shadow-xs border border-slate-200/80 min-w-[55px]">
+                    <span className="font-black text-xl text-slate-900 leading-none">{String(timeLeft.hours).padStart(2, '0')}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Hours</span>
+                  </div>
+                  <span className="font-bold text-slate-400 text-lg leading-none">:</span>
+                  <div className="flex flex-col items-center bg-white px-3.5 py-2 rounded-xl shadow-xs border border-slate-200/80 min-w-[55px]">
+                    <span className="font-black text-xl text-slate-900 leading-none">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Mins</span>
+                  </div>
+                  <span className="font-bold text-slate-400 text-lg leading-none">:</span>
+                  <div className="flex flex-col items-center bg-white px-3.5 py-2 rounded-xl shadow-xs border border-slate-200/80 min-w-[55px]">
+                    <span className="font-black text-xl text-[#6A38C2] leading-none">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Secs</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ==== MACHINE LEARNING COMPATIBILITY SCORECARD ==== */}
         {user && user.role === "student" && (
@@ -388,6 +544,26 @@ const JobDescription = () => {
               <div>
                 <span className="font-bold text-gray-900 text-xs uppercase block text-gray-400">Posting Date</span>
                 <span className="font-semibold text-gray-900">{singleJob?.createdAt?.split("T")[0] || "N/A"}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                isExpired 
+                  ? 'bg-rose-50 text-rose-600' 
+                  : singleJob?.deadline 
+                  ? 'bg-purple-50 text-[#6A38C2]' 
+                  : 'bg-slate-100 text-slate-500'
+              }`}>
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="font-bold text-gray-900 text-xs uppercase block text-gray-400">Application Deadline</span>
+                <span className={`font-semibold ${isExpired ? 'text-rose-600 font-bold' : 'text-gray-900'}`}>
+                  {singleJob?.deadline 
+                    ? `${singleJob.deadline.split("T")[0]} ${isExpired ? '(Closed)' : ''}` 
+                    : "Open Indefinitely"}
+                </span>
               </div>
             </div>
           </div>

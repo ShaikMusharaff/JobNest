@@ -25,6 +25,32 @@ const Job = ({ job }) => {
         return name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
     };
 
+    const getDeadlineBadge = (deadline) => {
+        if (!deadline) return null;
+        const targetDate = new Date(deadline);
+        const now = new Date();
+        const diffDays = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24));
+        if (now > targetDate) {
+            return (
+                <Badge variant="outline" className='bg-rose-50 border-rose-200 text-rose-700 font-bold text-xs px-2.5 py-0.5 rounded-lg'>
+                    Closed
+                </Badge>
+            );
+        }
+        if (diffDays <= 3) {
+            return (
+                <Badge variant="outline" className='bg-amber-50 border-amber-200 text-amber-700 font-bold text-xs px-2.5 py-0.5 rounded-lg'>
+                    ⚡ Ends in {diffDays <= 0 ? "Today" : `${diffDays}d`}
+                </Badge>
+            );
+        }
+        return (
+            <Badge variant="outline" className='bg-slate-50 border-slate-200 text-slate-600 font-medium text-xs px-2.5 py-0.5 rounded-lg'>
+                Due {targetDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </Badge>
+        );
+    };
+
     const toggleSaveJob = (e) => {
         e.stopPropagation();
         setIsSaved(!isSaved);
@@ -101,6 +127,7 @@ const Job = ({ job }) => {
                     <Badge variant="outline" className='bg-emerald-50/80 border-emerald-200/80 text-emerald-700 font-semibold text-xs px-2.5 py-0.5 rounded-lg'>
                         ₹{job?.salary} LPA
                     </Badge>
+                    {getDeadlineBadge(job?.deadline)}
                 </div>
             </div>
 

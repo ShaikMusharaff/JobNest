@@ -29,6 +29,15 @@ export const applyJob = async (req, res) => {
                 success: false
             })
         }
+
+        // Check if application deadline has passed
+        if (job.deadline && new Date() > new Date(job.deadline)) {
+            return res.status(400).json({
+                message: "Application deadline has already passed for this job opening.",
+                success: false
+            });
+        }
+
         // create a new application
         const newApplication = await Application.create({
             job:jobId,

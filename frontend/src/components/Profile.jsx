@@ -44,6 +44,7 @@ const Profile = () => {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [uploadedResumeFile, setUploadedResumeFile] = useState(null);
   const [syncingSkills, setSyncingSkills] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState(0);
 
   const handleAnalyzeResume = async (fileOverride = null) => {
     const fileToUpload = fileOverride || uploadedResumeFile;
@@ -54,6 +55,12 @@ const Profile = () => {
 
     try {
       setAnalyzing(true);
+      setAnalysisStep(1);
+
+      // Simulate step progression for responsive feedback
+      const t1 = setTimeout(() => setAnalysisStep(2), 600);
+      const t2 = setTimeout(() => setAnalysisStep(3), 1300);
+
       const formData = new FormData();
 
       if (fileToUpload) {
@@ -71,6 +78,10 @@ const Profile = () => {
         }
       );
 
+      clearTimeout(t1);
+      clearTimeout(t2);
+      setAnalysisStep(4);
+
       if (res.data.success && res.data.analysis) {
         setAnalysisResult(res.data.analysis);
         toast.success("Resume analyzed successfully!");
@@ -82,6 +93,7 @@ const Profile = () => {
       toast.error("Failed to analyze resume. Please try again.");
     } finally {
       setAnalyzing(false);
+      setAnalysisStep(0);
     }
   };
 
@@ -333,6 +345,43 @@ const Profile = () => {
             )}
           </div>
         </div>
+
+        {/* Real-time Analysis Progress Stepper */}
+        {analyzing && (
+          <div className="my-6 p-6 rounded-3xl bg-white border border-indigo-200/90 shadow-lg space-y-4 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-purple-100 text-[#6A38C2] flex items-center justify-center">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900">
+                    AI Resume Engine Analyzing...
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {analysisStep <= 1 && "Step 1/4: Parsing document structure & extracting raw text..."}
+                    {analysisStep === 2 && "Step 2/4: Scanning 200+ canonical technical skills & alias database..."}
+                    {analysisStep === 3 && "Step 3/4: Computing multi-factor TF-IDF vector space & similarity..."}
+                    {analysisStep >= 4 && "Step 4/4: Generating ATS score & market readiness suggestions..."}
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-black text-[#6A38C2] px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200">
+                {analysisStep <= 1 ? "25%" : analysisStep === 2 ? "50%" : analysisStep === 3 ? "75%" : "100%"}
+              </span>
+            </div>
+
+            {/* Glowing Progress Track */}
+            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-[#6A38C2] via-indigo-600 to-violet-500 rounded-full transition-all duration-500 shadow-sm"
+                style={{
+                  width: analysisStep <= 1 ? "25%" : analysisStep === 2 ? "50%" : analysisStep === 3 ? "75%" : "100%"
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Analysis Results */}
         {analysisResult && (

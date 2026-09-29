@@ -22,6 +22,32 @@ const LatestJobCards = ({ job }) => {
         return `${diffDays} days ago`;
     };
 
+    const getDeadlineBadge = (deadline) => {
+        if (!deadline) return null;
+        const targetDate = new Date(deadline);
+        const now = new Date();
+        const diffDays = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24));
+        if (now > targetDate) {
+            return (
+                <Badge variant="outline" className='bg-rose-50/70 border-rose-200/80 text-rose-700 text-xs font-semibold px-2 py-0.5 rounded-lg'>
+                    Closed
+                </Badge>
+            );
+        }
+        if (diffDays <= 3) {
+            return (
+                <Badge variant="outline" className='bg-amber-50/70 border-amber-200/80 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-lg'>
+                    ⚡ {diffDays <= 0 ? "Ends Today" : `${diffDays}d left`}
+                </Badge>
+            );
+        }
+        return (
+            <Badge variant="outline" className='bg-slate-50/70 border-slate-200/80 text-slate-600 text-xs font-medium px-2 py-0.5 rounded-lg'>
+                Due {targetDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </Badge>
+        );
+    };
+
     return (
         <div 
             onClick={() => navigate(`/description/${job?._id}`)} 
@@ -77,6 +103,7 @@ const LatestJobCards = ({ job }) => {
                     <Badge variant="outline" className='bg-emerald-50/70 border-emerald-200/80 text-emerald-700 text-xs font-semibold px-2.5 py-0.5 rounded-lg'>
                         ₹{job?.salary} LPA
                     </Badge>
+                    {getDeadlineBadge(job?.deadline)}
                 </div>
 
                 <div className='flex items-center justify-between text-xs font-bold text-slate-600 group-hover:text-[#6A38C2] transition-colors pt-1'>
